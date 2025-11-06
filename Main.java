@@ -8,7 +8,19 @@ import validator.DuckValidator;
 import validator.PersoanaValidator;
 import validator.ValidationStrategy;
 
+/**
+ * Application entry point for the social-network-rempill project.
+ *
+ * This class initializes the repository, validators and service layer,
+ * then starts the console user interface. Keep this class minimal so it
+ * can be used as a simple runner from the IDE or command line.
+ */
 public class Main {
+    /**
+     * Start the application.
+     *
+     * @param args command-line arguments (ignored)
+     */
     public static void main(String[] args) {
         UserRepository userRepository = new InMemoryUserRepository();
 

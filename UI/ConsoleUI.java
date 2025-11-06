@@ -14,15 +14,29 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Scanner;
 
+/**
+ * Simple console-based user interface for interacting with the NetworkService.
+ * Provides commands to add/remove users, manage friendships and display
+ * network-related information.
+ */
 public class ConsoleUI {
     private NetworkService service;
     private Scanner scanner;
 
+    /**
+     * Create a ConsoleUI bound to the provided {@link NetworkService}.
+     *
+     * @param service service layer used to perform operations
+     */
     public ConsoleUI(NetworkService service) {
         this.service = service;
         this.scanner = new Scanner(System.in);
     }
 
+    /**
+     * Run the interactive console loop. This method blocks and reads user input
+     * from standard input until the user chooses to exit.
+     */
     public void run() {
         addTestData();
         while (true) {

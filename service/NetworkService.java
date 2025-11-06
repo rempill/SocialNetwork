@@ -14,18 +14,36 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Service layer that orchestrates repository access, validation and business
+ * operations for the social network domain.
+ */
 public class NetworkService {
     private UserRepository userRepository;
     private ValidationStrategy<Persoana> persoanaValidator;
     private ValidationStrategy<Duck> duckValidator;
 
+    /**
+     * Construct the NetworkService with required dependencies.
+     *
+     * @param userRepository repository for users
+     * @param persoanaValidator validator for Persoana instances
+     * @param duckValidator validator for Duck instances
+     */
     public NetworkService(UserRepository userRepository, ValidationStrategy<Persoana> persoanaValidator, ValidationStrategy<Duck> duckValidator) {
         this.userRepository = userRepository;
         this.persoanaValidator = persoanaValidator;
         this.duckValidator = duckValidator;
     }
 
-    // adds a new user to the network
+    /**
+     * Add a new user to the network after validating it.
+     *
+     * @param user the user to add (Persoana or Duck)
+     * @return the saved user
+     * @throws ValidationError when validation fails
+     * @throws RepoError when repository rejects the save (e.g. duplicate id)
+     */
     public User addUser(User user) throws ValidationError, RepoError {
         if(user instanceof Persoana){
             persoanaValidator.validate((Persoana) user);
@@ -39,7 +57,13 @@ public class NetworkService {
         return userRepository.save(user);
     }
 
-    // removes a user from the network and also removes him from all his friends' friend lists
+    /**
+     * Remove a user by id and clean up references from other users' friend lists.
+     *
+     * @param id the id of the user to remove
+     * @return the removed user
+     * @throws RepoError when the user does not exist
+     */
     public User removeUser(Integer id){
         User userToRemove=userRepository.delete(id);
         if(userToRemove==null){
@@ -51,7 +75,13 @@ public class NetworkService {
         return userToRemove;
     }
 
-    // adds a friendship between two users
+    /**
+     * Create a mutual friendship between two users identified by their ids.
+     *
+     * @param id1 first user's id
+     * @param id2 second user's id
+     * @throws RepoError when either user is not found
+     */
     public void addFriendship(Integer id1, Integer id2){
         User user1=userRepository.findOne(id1);
         User user2=userRepository.findOne(id2);
@@ -65,7 +95,12 @@ public class NetworkService {
         user2.addFriend(user1);
     }
 
-    // removes the friendship between two users
+    /**
+     * Remove a mutual friendship between two users (if present).
+     *
+     * @param id1 first user's id
+     * @param id2 second user's id
+     */
     public void removeFriendship(Integer id1, Integer id2){
         User user1=userRepository.findOne(id1);
         User user2=userRepository.findOne(id2);
@@ -77,11 +112,20 @@ public class NetworkService {
         }
     }
 
-    // retrieves all users in the network
+    /**
+     * Retrieve all users in the network.
+     *
+     * @return iterable of all users
+     */
     public Iterable<User> getAllUsers(){
         return userRepository.findAll();
     }
 
+    /**
+     * Compute the number of connected components (communities) in the network.
+     *
+     * @return number of communities
+     */
     public int getNumberOfCommunities(){
         Set<User> visited=new HashSet<>();
         int communities=0;
@@ -94,6 +138,13 @@ public class NetworkService {
         return communities;
     }
 
+    /**
+     * Find the community with the largest diameter (most social community).
+     * The method returns the list of users in the community with the maximum
+     * shortest-path diameter.
+     *
+     * @return list of users forming the most social community
+     */
     public List<User> getMostSocialCommunity() {
         Set<User> visitedGlobal = new HashSet<>();
         List<User> bestCommunity = new ArrayList<>();

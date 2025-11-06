@@ -4,8 +4,21 @@ import domain.Persoana;
 import domain.User;
 import errors.ValidationError;
 
+/**
+ * Validator for {@link domain.Persoana} objects.
+ * Delegates common User validation to {@link UserValidator} and then performs
+ * Persoana-specific checks.
+ */
 public class PersoanaValidator implements ValidationStrategy<Persoana> {
     private final ValidationStrategy<User> userValidator= new UserValidator();
+
+    /**
+     * Validate the provided Persoana. Collects validation problems and throws
+     * {@link ValidationError} with a combined message if any checks fail.
+     *
+     * @param persoana the Persoana to validate
+     * @throws ValidationError when validation fails
+     */
     @Override
     public void validate(Persoana persoana) {
         String errors = "";
