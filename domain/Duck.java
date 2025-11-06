@@ -1,12 +1,11 @@
 package domain;
 
 /**
- * Duck is a type of {@link User} representing a duck-like user in the network.
- * It includes a {@link TipRata} and numeric attributes describing performance.
+ * Abstract Duck user adding performance attributes.
  */
-public class Duck extends User{
-    private TipRata tipRata;
-    private double viteza,rezistenta;
+public abstract class Duck extends User {
+    protected TipRata tipRata;
+    protected double viteza, rezistenta;
 
     /**
      * Construct a new Duck user.

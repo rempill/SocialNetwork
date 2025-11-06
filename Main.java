@@ -1,7 +1,9 @@
 import UI.ConsoleUI;
 import domain.Duck;
 import domain.Persoana;
+import repo.InMemoryEventRepository;
 import repo.InMemoryUserRepository;
+import repo.EventRepository;
 import repo.UserRepository;
 import service.NetworkService;
 import validator.DuckValidator;
@@ -23,11 +25,12 @@ public class Main {
      */
     public static void main(String[] args) {
         UserRepository userRepository = new InMemoryUserRepository();
+        EventRepository eventRepository = new InMemoryEventRepository();
 
         ValidationStrategy<Persoana>  persoanaValidator=new PersoanaValidator();
         ValidationStrategy<Duck>  duckValidator=new DuckValidator();
 
-        NetworkService service= new NetworkService(userRepository, persoanaValidator, duckValidator);
+        NetworkService service= new NetworkService(userRepository, eventRepository, persoanaValidator, duckValidator);
 
         ConsoleUI ui=new ConsoleUI(service);
         ui.run();

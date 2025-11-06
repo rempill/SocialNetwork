@@ -1,18 +1,14 @@
 package service;
 
-import domain.Duck;
-import domain.Persoana;
-import domain.User;
+import domain.*;
 import errors.RepoError;
 import errors.ValidationError;
+import repo.EventRepository;
 import repo.UserRepository;
 import util.Algorithms;
 import validator.ValidationStrategy;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Service layer that orchestrates repository access, validation and business
@@ -20,18 +16,22 @@ import java.util.Set;
  */
 public class NetworkService {
     private UserRepository userRepository;
+    private EventRepository eventRepository;
     private ValidationStrategy<Persoana> persoanaValidator;
     private ValidationStrategy<Duck> duckValidator;
+    private final Map<Integer, Card> cards = new HashMap<>();
 
     /**
      * Construct the NetworkService with required dependencies.
      *
      * @param userRepository repository for users
+     * @param eventRepository repository for events
      * @param persoanaValidator validator for Persoana instances
      * @param duckValidator validator for Duck instances
      */
-    public NetworkService(UserRepository userRepository, ValidationStrategy<Persoana> persoanaValidator, ValidationStrategy<Duck> duckValidator) {
+    public NetworkService(UserRepository userRepository, EventRepository eventRepository, ValidationStrategy<Persoana> persoanaValidator, ValidationStrategy<Duck> duckValidator) {
         this.userRepository = userRepository;
+        this.eventRepository = eventRepository;
         this.persoanaValidator = persoanaValidator;
         this.duckValidator = duckValidator;
     }
@@ -59,6 +59,7 @@ public class NetworkService {
 
     /**
      * Remove a user by id and clean up references from other users' friend lists.
+     * Also removes a duck from all cards where it appears.
      *
      * @param id the id of the user to remove
      * @return the removed user
@@ -71,6 +72,13 @@ public class NetworkService {
         }
         for (User u: userRepository.findAll()) {
             u.removeFriend(userToRemove);
+        }
+        // also remove from cards if it's a Duck
+        if (userToRemove instanceof Duck) {
+            Duck d = (Duck) userToRemove;
+            for (Card c : cards.values()) {
+                c.removeDuck(d);
+            }
         }
         return userToRemove;
     }
@@ -149,20 +157,13 @@ public class NetworkService {
         Set<User> visitedGlobal = new HashSet<>();
         List<User> bestCommunity = new ArrayList<>();
         int maxDiameter = -1;
-
-        // 1. Găsește fiecare comunitate (componentă conexă)
         for (User user : userRepository.findAll()) {
             if (!visitedGlobal.contains(user)) {
                 Set<User> currentCommunitySet = new HashSet<>();
                 Algorithms.dfs(user, currentCommunitySet); // Găsește toți membrii
                 visitedGlobal.addAll(currentCommunitySet);
-
                 List<User> currentCommunityList = new ArrayList<>(currentCommunitySet);
-
-                // 2. Calculează diametrul (cel mai lung drum scurt)
                 int currentDiameter = Algorithms.getDiameter(currentCommunityList);
-
-                // 3. Compară
                 if (currentDiameter > maxDiameter) {
                     maxDiameter = currentDiameter;
                     bestCommunity = currentCommunityList;
@@ -171,5 +172,143 @@ public class NetworkService {
         }
         System.out.println("Diametrul maxim găsit: " + maxDiameter);
         return bestCommunity;
+    }
+
+    // CARD operations
+    /**
+     * Create a card (flock) that can contain ducks and compute their average performance.
+     *
+     * @param id       card id
+     * @param numeCard card name
+     * @return created {@link Card}
+     */
+    public Card createCard(int id, String numeCard){
+        if(cards.containsKey(id)) throw new RepoError("Card with id "+id+" already exists");
+        Card c = new Card(id, numeCard);
+        cards.put(id, c);
+        return c;
+    }
+
+    /**
+     * @return view of all created cards
+     */
+    public Collection<Card> getAllCards(){
+        return cards.values();
+    }
+
+    /**
+     * Add a duck to a card by their ids.
+     *
+     * @param cardId card id
+     * @param duckId duck user id
+     */
+    public void addDuckToCard(int cardId, int duckId){
+        Card c = cards.get(cardId);
+        if(c==null) throw new RepoError("Card not found");
+        User u = userRepository.findOne(duckId);
+        if(!(u instanceof Duck)) throw new RepoError("User is not a duck or not found");
+        c.addDuck((Duck) u);
+    }
+
+    /**
+     * Remove a duck from a card by their ids.
+     *
+     * @param cardId card id
+     * @param duckId duck user id
+     */
+    public void removeDuckFromCard(int cardId, int duckId){
+        Card c = cards.get(cardId);
+        if(c==null) throw new RepoError("Card not found");
+        User u = userRepository.findOne(duckId);
+        if(!(u instanceof Duck)) throw new RepoError("User is not a duck or not found");
+        c.removeDuck((Duck) u);
+    }
+
+    /**
+     * Compute the average performance value for a card.
+     *
+     * @param cardId card id
+     * @return average performance
+     */
+    public double getCardPerformantaMedie(int cardId){
+        Card c = cards.get(cardId);
+        if(c==null) throw new RepoError("Card not found");
+        return c.getPerformantaMedie();
+    }
+
+    // EVENT operations using repository
+    /**
+     * Create and store a race event with a specific lane count.
+     *
+     * @param id    event id
+     * @param name  event name
+     * @param lanes number of lanes (M)
+     * @return created {@link RaceEvent}
+     */
+    public RaceEvent createRaceEvent(int id, String name, int lanes){
+        RaceEvent re = new RaceEvent(id, name, lanes);
+        eventRepository.save(re);
+        return re;
+    }
+
+    /**
+     * @return all events stored in the repository
+     */
+    public Iterable<Event> getAllEvents(){ return eventRepository.findAll(); }
+
+    /**
+     * Subscribe a user to an event by ids.
+     *
+     * @param eventId event id
+     * @param userId  user id
+     */
+    public void subscribeToEvent(int eventId, int userId){
+        Event e = eventRepository.findOne(eventId);
+        if(e==null) throw new RepoError("Event not found");
+        User u = userRepository.findOne(userId);
+        if(u==null) throw new RepoError("User not found");
+        e.subscribe(u);
+    }
+
+    /**
+     * Unsubscribe a user from an event (no-op if user or event does not exist).
+     *
+     * @param eventId event id
+     * @param userId  user id
+     */
+    public void unsubscribeFromEvent(int eventId, int userId){
+        Event e = eventRepository.findOne(eventId);
+        if(e==null) throw new RepoError("Event not found");
+        User u = userRepository.findOne(userId);
+        if(u!=null) e.unsubscribe(u);
+    }
+
+    /**
+     * Run a race event identified by id. It gathers all users that are both Duck and Inotator,
+     * selects up to M participants, runs the optimizer and returns a textual report.
+     *
+     * @param eventId the race event id
+     * @return list of report lines (one per lane + minimal total time)
+     */
+    public List<String> runRace(int eventId){
+        Event ev = eventRepository.findOne(eventId);
+        if(!(ev instanceof RaceEvent)) throw new RepoError("Event is not a race");
+        RaceEvent re = (RaceEvent) ev;
+        List<Duck> allDucks = new ArrayList<>();
+        for (User u : userRepository.findAll()) if(u instanceof Duck && u instanceof Inotator) allDucks.add((Duck) u);
+        re.selectParticipants(allDucks);
+        return re.runRaceAndReport();
+    }
+
+    /**
+     * Configure lane distances for a race event.
+     *
+     * @param eventId   race event id
+     * @param distances per-lane distances (exactly M values)
+     */
+    public void setRaceDistances(int eventId, double[] distances){
+        Event ev = eventRepository.findOne(eventId);
+        if(!(ev instanceof RaceEvent)) throw new errors.RepoError("Event is not a race");
+        ((RaceEvent) ev).setDistances(distances);
     }
 }

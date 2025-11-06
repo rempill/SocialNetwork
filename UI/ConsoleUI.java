@@ -1,9 +1,6 @@
 package UI;
 
-import domain.Duck;
-import domain.Persoana;
-import domain.TipRata;
-import domain.User;
+import domain.*;
 import errors.RepoError;
 import errors.ValidationError;
 import service.NetworkService;
@@ -11,6 +8,7 @@ import service.NetworkService;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
@@ -66,6 +64,33 @@ public class ConsoleUI {
                     case "7":
                         showMostSocial();
                         break;
+                    case "8":
+                        createCard();
+                        break;
+                    case "9":
+                        listCards();
+                        break;
+                    case "10":
+                        addDuckToCard();
+                        break;
+                    case "11":
+                        removeDuckFromCard();
+                        break;
+                    case "12":
+                        showCardPerformance();
+                        break;
+                    case "13":
+                        createRaceEvent();
+                        break;
+                    case "14":
+                        subscribeToEvent();
+                        break;
+                    case "15":
+                        runRaceEvent();
+                        break;
+                    case "16":
+                        showEventNotifications();
+                        break;
                     case "0":
                         System.out.println("Ieșire...");
                         return;
@@ -94,13 +119,21 @@ public class ConsoleUI {
         System.out.println("5. Afișează toți utilizatorii");
         System.out.println("6. Afișează numărul de comunități");
         System.out.println("7. Afișează cea mai sociabilă comunitate");
+        System.out.println("8. Creează card (flock) de rațe");
+        System.out.println("9. Listează cardurile");
+        System.out.println("10. Adaugă rață în card");
+        System.out.println("11. Elimină rață din card");
+        System.out.println("12. Afișează performanța medie a cardului");
+        System.out.println("13. Creează RaceEvent");
+        System.out.println("14. Abonare utilizator la un eveniment");
+        System.out.println("15. Rulează RaceEvent și afișează rezultate");
+        System.out.println("16. Vezi notificări eveniment");
         System.out.println("0. Ieșire");
     }
 
     private void addUser(){
-        System.out.print("Tip (persoana/duck): ");
+        System.out.print("Tip (persoana/swimduck/flyduck/amphduck): ");
         String type=scanner.nextLine();
-
         System.out.print("ID (int): ");
         int id=Integer.parseInt(scanner.nextLine());
         System.out.print("Username: ");
@@ -123,14 +156,24 @@ public class ConsoleUI {
             System.out.print("Nivel empatie (1-10): ");
             int nivelEmpatie=Integer.parseInt(scanner.nextLine());
             user=new Persoana(id, username, email, password, nume, prenume, ocupatie, dataNasterii, nivelEmpatie);
-        } else if(type.equalsIgnoreCase("duck")){
-            System.out.print("Tip rata (SWIMMING/FLYING/FLYING_AND_SWIMMING): ");
-            TipRata tipRata=TipRata.valueOf(scanner.nextLine().toUpperCase());
+        } else if(type.equalsIgnoreCase("swimduck")){
             System.out.print("Viteza (double): ");
             double viteza=Double.parseDouble(scanner.nextLine());
             System.out.print("Rezistenta (double): ");
             double rezistenta=Double.parseDouble(scanner.nextLine());
-            user=new Duck(id, username, email, password, tipRata, viteza, rezistenta);
+            user=new SwimmingDuck(id, username, email, password, viteza, rezistenta);
+        } else if(type.equalsIgnoreCase("flyduck")){
+            System.out.print("Viteza (double): ");
+            double viteza=Double.parseDouble(scanner.nextLine());
+            System.out.print("Rezistenta (double): ");
+            double rezistenta=Double.parseDouble(scanner.nextLine());
+            user=new FlyingDuck(id, username, email, password, viteza, rezistenta);
+        } else if(type.equalsIgnoreCase("amphduck")){
+            System.out.print("Viteza (double): ");
+            double viteza=Double.parseDouble(scanner.nextLine());
+            System.out.print("Rezistenta (double): ");
+            double rezistenta=Double.parseDouble(scanner.nextLine());
+            user=new AmphibiousDuck(id, username, email, password, viteza, rezistenta);
         } else {
             System.out.println("Tip necunoscut!");
             return;
@@ -183,23 +226,132 @@ public class ConsoleUI {
         }
     }
 
+    // CARD UI
+    private void createCard(){
+        System.out.print("ID card: ");
+        int id = Integer.parseInt(scanner.nextLine());
+        System.out.print("Nume card: ");
+        String nume = scanner.nextLine();
+        Card c = service.createCard(id, nume);
+        System.out.println("Card creat: "+c);
+    }
+
+    private void listCards(){
+        System.out.println("Carduri:");
+        for (Card c : service.getAllCards()) {
+            System.out.println(c.getId()+": "+c.getNumeCard()+" membri="+c.getMembri().size()+" perfMedie="+String.format("%.2f", c.getPerformantaMedie()));
+        }
+    }
+
+    private void addDuckToCard(){
+        System.out.print("ID card: ");
+        int cardId = Integer.parseInt(scanner.nextLine());
+        System.out.print("ID duck: ");
+        int duckId = Integer.parseInt(scanner.nextLine());
+        service.addDuckToCard(cardId, duckId);
+        System.out.println("Rață adăugată în card.");
+    }
+
+    private void removeDuckFromCard(){
+        System.out.print("ID card: ");
+        int cardId = Integer.parseInt(scanner.nextLine());
+        System.out.print("ID duck: ");
+        int duckId = Integer.parseInt(scanner.nextLine());
+        service.removeDuckFromCard(cardId, duckId);
+        System.out.println("Rață eliminată din card.");
+    }
+
+    private void showCardPerformance(){
+        System.out.print("ID card: ");
+        int cardId = Integer.parseInt(scanner.nextLine());
+        double perf = service.getCardPerformantaMedie(cardId);
+        System.out.println("Performanță medie card: "+String.format("%.3f", perf));
+    }
+
+    // EVENT UI
+    private void createRaceEvent(){
+        System.out.print("ID cursă (int): ");
+        int id = Integer.parseInt(scanner.nextLine());
+        System.out.print("Nume cursă: ");
+        String name = scanner.nextLine();
+        System.out.print("Număr de linii (M): ");
+        int lanes = Integer.parseInt(scanner.nextLine());
+        service.createRaceEvent(id, name, lanes);
+        System.out.println("RaceEvent creat: "+name+" (#"+id+") cu "+lanes+" linii.");
+    }
+
+    private void subscribeToEvent(){
+        System.out.print("ID eveniment: ");
+        int eventId = Integer.parseInt(scanner.nextLine());
+        System.out.print("ID utilizator pentru abonare: ");
+        int userId = Integer.parseInt(scanner.nextLine());
+        service.subscribeToEvent(eventId, userId);
+        System.out.println("Utilizator abonat.");
+    }
+
+    /**
+     * Prompt for an event id, display the number of lanes (M), optionally accept
+     * user-provided per-lane distances and run the race, printing the results.
+     */
+    private void runRaceEvent(){
+        System.out.print("ID eveniment (RaceEvent): ");
+        int eventId = Integer.parseInt(scanner.nextLine());
+        // Show lane count to help the user provide correct distances
+        int lanes = -1;
+        for (Event e : service.getAllEvents()) {
+            if (e.getId() == eventId && e instanceof RaceEvent) {
+                lanes = ((RaceEvent) e).getLanes();
+                break;
+            }
+        }
+        if (lanes > 0) {
+            System.out.println("Evenimentul are " + lanes + " linii (M).");
+        }
+        System.out.print("Introduceți distanțele pe linii (M valori separate prin spațiu, ex: 1 2 3). Lăsați gol pentru implicit: ");
+        String line = scanner.nextLine().trim();
+        if(!line.isEmpty()){
+            double[] distances = Arrays.stream(line.split("\\s+")).mapToDouble(Double::parseDouble).toArray();
+            service.setRaceDistances(eventId, distances);
+        }
+        List<String> results = service.runRace(eventId);
+        System.out.println("Rezultatele cursei:");
+        for(String r : results){
+            System.out.println(r);
+        }
+    }
+
+    private void showEventNotifications(){
+        System.out.print("ID eveniment: ");
+        int eventId = Integer.parseInt(scanner.nextLine());
+        for (domain.Event e : service.getAllEvents()) {
+            if(e.getId()==eventId){
+                System.out.println("Notificări pentru eveniment "+e.getName()+":");
+                for(String n : e.getNotificationLog()) System.out.println(" - "+n);
+                return;
+            }
+        }
+        System.out.println("Eveniment inexistent.");
+    }
+
+    /**
+     * Seed the application with a mix of persons and ducks, including enough swimmers
+     * (SwimmingDuck and AmphibiousDuck) to make race events runnable out-of-the-box.
+     * Also creates two race events: one auto-run at startup for demo purposes and one
+     * left for interaction via the menu.
+     */
     private void addTestData(){
         try{
             // Comunitatea 1 (linie)
-            // Constructor Persoana: (id, username, email, password, nume, prenume, ocupatie, dataNasterii, nivelEmpatie)
             service.addUser(new Persoana(1, "ana", "a@g.com", "pass1231", "Ana", "Pop", "Student", LocalDate.of(2000, 5, 15), 8));
             service.addUser(new Persoana(2, "bogdan", "b@g.com", "pass4561", "Bogdan", "Ion", "Inginer", LocalDate.of(1995, 10, 20), 5));
             service.addUser(new Persoana(3, "cipi", "c@g.com", "pass7891", "Cipi", "Vlad", "Artist", LocalDate.of(1998, 2, 1), 9));
-
             service.addFriendship(1, 2);
             service.addFriendship(2, 3);
 
-            // Comunitatea 2 (triunghi)
-            // Constructor Duck: (id, username, email, password, tipRata, viteza, rezistenta)
-            service.addUser(new Duck(4, "donald", "d1@g.com", "quack111", TipRata.SWIMMING, 15.5, 20.0));
-            service.addUser(new Duck(5, "daffy", "d2@g.com", "quack111", TipRata.FLYING, 50.0, 10.5));
+            // Comunitatea 2 (triunghi) + more ducks
+            service.addUser(new SwimmingDuck(4, "donald", "d1@g.com", "quack111", 15.5, 20.0));
+            service.addUser(new FlyingDuck(5, "daffy", "d2@g.com", "quack111", 50.0, 10.5));
             service.addUser(new Persoana(6, "elena", "e@g.com", "pass1011", "Elena", "Turc", "Medic", LocalDate.of(1990, 7, 30), 7));
-
             service.addFriendship(4, 5);
             service.addFriendship(5, 6);
             service.addFriendship(4, 6);
@@ -207,7 +359,50 @@ public class ConsoleUI {
             // Comunitatea 3 (un singur nod)
             service.addUser(new Persoana(7, "singur", "s@g.com", "passSolitar", "Singur", "Singurel", "Gardian", LocalDate.of(1985, 1, 1), 3));
 
-            System.out.println("Date de test (complete) încărcate.");
+            // Extra ducks for richer race/card scenarios (ensure enough swimmers)
+            service.addUser(new SwimmingDuck(8, "splash", "sp@g.com", "swimPass1", 18.0, 19.0));
+            service.addUser(new AmphibiousDuck(9, "amphi", "am@g.com", "amphPass1", 22.0, 25.0));
+            service.addUser(new FlyingDuck(10, "swift", "sw@g.com", "flyPass11", 60.0, 11.0));
+            service.addUser(new SwimmingDuck(11, "wave", "wa@g.com", "swimPass2", 14.0, 30.0));
+            service.addUser(new AmphibiousDuck(12, "combo", "co@g.com", "amphPass2", 26.0, 18.0));
+            // Additional swimmers to guarantee enough eligible participants
+            service.addUser(new SwimmingDuck(13, "marina", "m1@g.com", "swimPass3", 16.5, 21.0));
+            service.addUser(new SwimmingDuck(14, "delta", "dlt@g.com", "swimPass4", 19.2, 17.5));
+            service.addUser(new AmphibiousDuck(15, "hybrid", "hy@g.com", "amphPass3", 24.0, 23.0));
+
+            // Create cards
+            service.createCard(100, "SwimMasters");
+            service.createCard(101, "SkyFlyers");
+            service.createCard(102, "HybridElite");
+
+            // Populate cards
+            service.addDuckToCard(100, 4); // donald
+            service.addDuckToCard(100, 8); // splash
+            service.addDuckToCard(100, 11); // wave
+            service.addDuckToCard(101, 5); // daffy
+            service.addDuckToCard(101, 10); // swift
+            service.addDuckToCard(102, 9); // amphi
+            service.addDuckToCard(102, 12); // combo
+
+            // Create race event and subscribe users
+            service.createRaceEvent(200, "Spring Splash", 3);
+            service.subscribeToEvent(200, 1); // ana
+            service.subscribeToEvent(200, 4); // donald
+            service.subscribeToEvent(200, 9); // amphi
+
+            // Optionally set custom distances and run race once to generate notifications & results in log
+            service.setRaceDistances(200, new double[]{1.0, 1.2, 0.8});
+            service.runRace(200);
+
+            // Second race event (user can run from menu)
+            service.createRaceEvent(201, "Championship Finals", 4);
+            service.subscribeToEvent(201, 2); // bogdan
+            service.subscribeToEvent(201, 8); // splash
+            service.subscribeToEvent(201, 12); // combo
+            // Provide sensible defaults so user can just press Enter for distances
+            service.setRaceDistances(201, new double[]{1.0, 1.0, 1.0, 1.0});
+
+            System.out.println("RaceEvent 200 a fost rulat cu distanțe predefinite; verifică notificările cu opțiunea 16 sau rulează alt eveniment cu opțiunea 15.");
         } catch (Exception e) {
             System.err.println("Eroare la încărcarea datelor de test: " + e.getMessage());
         }
