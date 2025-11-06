@@ -78,6 +78,8 @@ public class Event {
         String full = "[Event " + id + ":" + name + "] " + message;
         notificationLog.add(full);
         for (User u : subscribers) {
+            // push notification into user's inbox
+            u.receiveNotification(full);
             System.out.println("[Notify " + u.getUsername() + "] " + full);
         }
     }

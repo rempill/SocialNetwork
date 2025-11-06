@@ -91,6 +91,9 @@ public class ConsoleUI {
                     case "16":
                         showEventNotifications();
                         break;
+                    case "17":
+                        showUserNotifications();
+                        break;
                     case "0":
                         System.out.println("Ieșire...");
                         return;
@@ -128,6 +131,7 @@ public class ConsoleUI {
         System.out.println("14. Abonare utilizator la un eveniment");
         System.out.println("15. Rulează RaceEvent și afișează rezultate");
         System.out.println("16. Vezi notificări eveniment");
+        System.out.println("17. Vezi notificările unui utilizator");
         System.out.println("0. Ieșire");
     }
 
@@ -331,6 +335,23 @@ public class ConsoleUI {
             }
         }
         System.out.println("Eveniment inexistent.");
+    }
+
+    /**
+     * Display the notifications stored on a user (Observer inbox).
+     */
+    private void showUserNotifications(){
+        System.out.print("ID utilizator: ");
+        int userId = Integer.parseInt(scanner.nextLine());
+        List<String> notes = service.getUserNotifications(userId);
+        if(notes.isEmpty()){
+            System.out.println("(fără notificări)");
+        } else {
+            System.out.println("Notificări pentru utilizatorul #"+userId+":");
+            for(String n : notes){
+                System.out.println(" - "+n);
+            }
+        }
     }
 
     /**

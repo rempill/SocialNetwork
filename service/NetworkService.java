@@ -311,4 +311,17 @@ public class NetworkService {
         if(!(ev instanceof RaceEvent)) throw new errors.RepoError("Event is not a race");
         ((RaceEvent) ev).setDistances(distances);
     }
+
+    /**
+     * Get the notifications received by a specific user.
+     *
+     * @param userId id of the user
+     * @return unmodifiable list of messages
+     * @throws RepoError if the user is not found
+     */
+    public List<String> getUserNotifications(int userId){
+        User u = userRepository.findOne(userId);
+        if(u==null) throw new RepoError("User not found");
+        return u.getNotifications();
+    }
 }

@@ -1,6 +1,7 @@
 package domain;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 
 /**
  * Base abstract class that represents a user in the social network.
@@ -10,6 +11,8 @@ public abstract class User {
     protected int id;
     protected String username,email,password;
     protected List<User> friends;
+    /** Per-user notification inbox populated by subscribed events. */
+    private final List<String> notifications = new ArrayList<>();
 
     /**
      * Create a new User.
@@ -90,6 +93,25 @@ public abstract class User {
      */
     public void removeFriend(User user){
         friends.remove(user);
+    }
+
+    /**
+     * Receive a notification message from an observed event.
+     * Events call this when broadcasting updates to subscribers.
+     *
+     * @param message the message to store (ignored if null)
+     */
+    public void receiveNotification(String message){
+        if(message != null) notifications.add(message);
+    }
+
+    /**
+     * Read-only view of this user's notifications (in chronological order).
+     *
+     * @return unmodifiable list of notification messages
+     */
+    public List<String> getNotifications(){
+        return Collections.unmodifiableList(notifications);
     }
 
     @Override
