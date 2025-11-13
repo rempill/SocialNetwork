@@ -362,34 +362,34 @@ public class ConsoleUI {
      */
     private void addTestData(){
         try{
-            // Comunitatea 1 (linie)
-            service.addUser(new Persoana(1, "ana", "a@g.com", "pass1231", "Ana", "Pop", "Student", LocalDate.of(2000, 5, 15), 8));
-            service.addUser(new Persoana(2, "bogdan", "b@g.com", "pass4561", "Bogdan", "Ion", "Inginer", LocalDate.of(1995, 10, 20), 5));
-            service.addUser(new Persoana(3, "cipi", "c@g.com", "pass7891", "Cipi", "Vlad", "Artist", LocalDate.of(1998, 2, 1), 9));
-            service.addFriendship(1, 2);
-            service.addFriendship(2, 3);
-
-            // Comunitatea 2 (triunghi) + more ducks
-            service.addUser(new SwimmingDuck(4, "donald", "d1@g.com", "quack111", 15.5, 20.0));
-            service.addUser(new FlyingDuck(5, "daffy", "d2@g.com", "quack111", 50.0, 10.5));
-            service.addUser(new Persoana(6, "elena", "e@g.com", "pass1011", "Elena", "Turc", "Medic", LocalDate.of(1990, 7, 30), 7));
-            service.addFriendship(4, 5);
-            service.addFriendship(5, 6);
-            service.addFriendship(4, 6);
-
-            // Comunitatea 3 (un singur nod)
-            service.addUser(new Persoana(7, "singur", "s@g.com", "passSolitar", "Singur", "Singurel", "Gardian", LocalDate.of(1985, 1, 1), 3));
-
-            // Extra ducks for richer race/card scenarios (ensure enough swimmers)
-            service.addUser(new SwimmingDuck(8, "splash", "sp@g.com", "swimPass1", 18.0, 19.0));
-            service.addUser(new AmphibiousDuck(9, "amphi", "am@g.com", "amphPass1", 22.0, 25.0));
-            service.addUser(new FlyingDuck(10, "swift", "sw@g.com", "flyPass11", 60.0, 11.0));
-            service.addUser(new SwimmingDuck(11, "wave", "wa@g.com", "swimPass2", 14.0, 30.0));
-            service.addUser(new AmphibiousDuck(12, "combo", "co@g.com", "amphPass2", 26.0, 18.0));
-            // Additional swimmers to guarantee enough eligible participants
-            service.addUser(new SwimmingDuck(13, "marina", "m1@g.com", "swimPass3", 16.5, 21.0));
-            service.addUser(new SwimmingDuck(14, "delta", "dlt@g.com", "swimPass4", 19.2, 17.5));
-            service.addUser(new AmphibiousDuck(15, "hybrid", "hy@g.com", "amphPass3", 24.0, 23.0));
+//            // Comunitatea 1 (linie)
+//            service.addUser(new Persoana(1, "ana", "a@g.com", "pass1231", "Ana", "Pop", "Student", LocalDate.of(2000, 5, 15), 8));
+//            service.addUser(new Persoana(2, "bogdan", "b@g.com", "pass4561", "Bogdan", "Ion", "Inginer", LocalDate.of(1995, 10, 20), 5));
+//            service.addUser(new Persoana(3, "cipi", "c@g.com", "pass7891", "Cipi", "Vlad", "Artist", LocalDate.of(1998, 2, 1), 9));
+//            service.addFriendship(1, 2);
+//            service.addFriendship(2, 3);
+//
+//            // Comunitatea 2 (triunghi) + more ducks
+//            service.addUser(new SwimmingDuck(4, "donald", "d1@g.com", "quack111", 15.5, 20.0));
+//            service.addUser(new FlyingDuck(5, "daffy", "d2@g.com", "quack111", 50.0, 10.5));
+//            service.addUser(new Persoana(6, "elena", "e@g.com", "pass1011", "Elena", "Turc", "Medic", LocalDate.of(1990, 7, 30), 7));
+//            service.addFriendship(4, 5);
+//            service.addFriendship(5, 6);
+//            service.addFriendship(4, 6);
+//
+//            // Comunitatea 3 (un singur nod)
+//            service.addUser(new Persoana(7, "singur", "s@g.com", "passSolitar", "Singur", "Singurel", "Gardian", LocalDate.of(1985, 1, 1), 3));
+//
+//            // Extra ducks for richer race/card scenarios (ensure enough swimmers)
+//            service.addUser(new SwimmingDuck(8, "splash", "sp@g.com", "swimPass1", 18.0, 19.0));
+//            service.addUser(new AmphibiousDuck(9, "amphi", "am@g.com", "amphPass1", 22.0, 25.0));
+//            service.addUser(new FlyingDuck(10, "swift", "sw@g.com", "flyPass11", 60.0, 11.0));
+//            service.addUser(new SwimmingDuck(11, "wave", "wa@g.com", "swimPass2", 14.0, 30.0));
+//            service.addUser(new AmphibiousDuck(12, "combo", "co@g.com", "amphPass2", 26.0, 18.0));
+//            // Additional swimmers to guarantee enough eligible participants
+//            service.addUser(new SwimmingDuck(13, "marina", "m1@g.com", "swimPass3", 16.5, 21.0));
+//            service.addUser(new SwimmingDuck(14, "delta", "dlt@g.com", "swimPass4", 19.2, 17.5));
+//            service.addUser(new AmphibiousDuck(15, "hybrid", "hy@g.com", "amphPass3", 24.0, 23.0));
 
             // Create cards
             service.createCard(100, "SwimMasters");

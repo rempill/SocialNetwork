@@ -1,3 +1,4 @@
+// groovy
 plugins {
     id 'java'
     id 'application'
@@ -18,42 +19,29 @@ repositories {
 
 dependencies {
     implementation 'org.postgresql:postgresql:42.7.3'
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    // No test dependencies included (JUnit removed as requested)
 }
 
 application {
-    // Because sources are in project root, we keep sourceSet configuration.
+    // Use the fully-qualified main class name if your Main is in a package.
     mainClass = 'Main'
 }
 
 sourceSets {
     main {
         java {
-            // Compile .java sources directly from project root and its packages
-            srcDirs = ['.']
+            srcDirs = ['.'] // compile .java files from project root
         }
         resources {
             srcDirs = ['resources']
         }
     }
-    test {
-        java {
-            srcDirs = ['src/test/java']
-        }
-    }
 }
 
-test {
-    useJUnitPlatform()
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
 }
 
-// Simple task to print effective DB connection properties (from env or system properties)
-tasks.register('printDbConfig') {
-    doLast {
-        def url = System.getenv('DB_URL') ?: System.getProperty('db.url') ?: 'NOT SET'
-        def user = System.getenv('DB_USER') ?: System.getProperty('db.user') ?: 'NOT SET'
-        println "DB_URL=${url}"
-        println "DB_USER=${user}"
-    }
+tasks.test {
+    enabled = false
 }
-
