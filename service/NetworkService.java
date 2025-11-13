@@ -5,6 +5,7 @@ import errors.RepoError;
 import errors.ValidationError;
 import repo.EventRepository;
 import repo.UserRepository;
+import repo.PostgresUserRepository; // added
 import util.Algorithms;
 import validator.ValidationStrategy;
 
@@ -101,6 +102,9 @@ public class NetworkService {
         }
         user1.addFriend(user2);
         user2.addFriend(user1);
+        if(userRepository instanceof PostgresUserRepository pr){
+            pr.saveFriendship(id1, id2);
+        }
     }
 
     /**
@@ -117,6 +121,9 @@ public class NetworkService {
         }
         if(user2!=null){
             user2.removeFriend(user1);
+        }
+        if(userRepository instanceof PostgresUserRepository pr){
+            pr.deleteFriendship(id1, id2);
         }
     }
 

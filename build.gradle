@@ -1,0 +1,59 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'org.example'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.postgresql:postgresql:42.7.3'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+
+application {
+    // Because sources are in project root, we keep sourceSet configuration.
+    mainClass = 'Main'
+}
+
+sourceSets {
+    main {
+        java {
+            // Compile .java sources directly from project root and its packages
+            srcDirs = ['.']
+        }
+        resources {
+            srcDirs = ['resources']
+        }
+    }
+    test {
+        java {
+            srcDirs = ['src/test/java']
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// Simple task to print effective DB connection properties (from env or system properties)
+tasks.register('printDbConfig') {
+    doLast {
+        def url = System.getenv('DB_URL') ?: System.getProperty('db.url') ?: 'NOT SET'
+        def user = System.getenv('DB_USER') ?: System.getProperty('db.user') ?: 'NOT SET'
+        println "DB_URL=${url}"
+        println "DB_USER=${user}"
+    }
+}
+
