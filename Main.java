@@ -1,10 +1,10 @@
 import UI.ConsoleUI;
 import domain.Duck;
 import domain.Persoana;
-import repo.InMemoryEventRepository;
 import repo.EventRepository;
 import repo.UserRepository;
-import repo.PostgresUserRepository; // added
+import repo.PostgresUserRepository;
+import repo.PostgresEventRepository;
 import service.NetworkService;
 import validator.DuckValidator;
 import validator.PersoanaValidator;
@@ -30,7 +30,7 @@ public class Main {
         String dbPass = "mihai222";
 
         UserRepository userRepository=new PostgresUserRepository(dbUrl, dbUser, dbPass);
-        EventRepository eventRepository = new InMemoryEventRepository();
+        EventRepository eventRepository = new PostgresEventRepository(dbUrl, dbUser, dbPass);
 
         ValidationStrategy<Persoana>  persoanaValidator=new PersoanaValidator();
         ValidationStrategy<Duck>  duckValidator=new DuckValidator();
