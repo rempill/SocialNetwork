@@ -10,7 +10,7 @@ import java.util.List;
  * a list of subscribers and a notification log with all messages that were sent.
  */
 public class Event {
-    private final int id;
+    private int id;
     private final String name;
     private final List<User> subscribers = new ArrayList<>();
     private final List<String> notificationLog = new ArrayList<>();
@@ -33,6 +33,8 @@ public class Event {
      */
     public int getId() { return id; }
 
+    public void setId(int id) { this.id = id; }
+
     /**
      * @return the display name of this event
      */
@@ -47,6 +49,22 @@ public class Event {
      * @return an unmodifiable view of the notification messages sent by this event
      */
     public List<String> getNotificationLog() { return Collections.unmodifiableList(notificationLog); }
+
+    /**
+     * Internal helper for persistence layers to inject subscribers during hydration.
+     */
+    public void attachSubscriber(User user) {
+        if(user != null && !subscribers.contains(user)) {
+            subscribers.add(user);
+        }
+    }
+
+    /**
+     * Internal helper for persistence layers to rehydrate historical notifications.
+     */
+    public void appendNotification(String message) {
+        if(message != null) notificationLog.add(message);
+    }
 
     /**
      * Subscribe a user to receive notifications from this event. Duplicates are ignored.

@@ -17,6 +17,10 @@ public class AmphibiousDuck extends Duck implements Inotator, Zburator {
     public AmphibiousDuck(int id, String username, String email, String password, double viteza, double rezistenta) {
         super(id, username, email, password, TipRata.FLYING_AND_SWIMMING, viteza, rezistenta);
     }
+
+    public AmphibiousDuck(String username, String email, String password, double viteza, double rezistenta) {
+        super(username, email, password, TipRata.FLYING_AND_SWIMMING, viteza, rezistenta);
+    }
     @Override
     public void inoata() { }
     @Override

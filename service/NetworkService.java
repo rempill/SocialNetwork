@@ -6,6 +6,9 @@ import errors.ValidationError;
 import repo.EventRepository;
 import repo.UserRepository;
 import repo.PostgresUserRepository; // added
+import repo.PostgresEventRepository;
+import repo.CardRepository;
+
 import util.Algorithms;
 import validator.ValidationStrategy;
 
@@ -21,6 +24,7 @@ public class NetworkService {
     private ValidationStrategy<Persoana> persoanaValidator;
     private ValidationStrategy<Duck> duckValidator;
     private final Map<Integer, Card> cards = new HashMap<>();
+    private final CardRepository cardRepository;
 
     /**
      * Construct the NetworkService with required dependencies.
@@ -29,12 +33,19 @@ public class NetworkService {
      * @param eventRepository repository for events
      * @param persoanaValidator validator for Persoana instances
      * @param duckValidator validator for Duck instances
+     * @param cardRepository repository for cards
      */
-    public NetworkService(UserRepository userRepository, EventRepository eventRepository, ValidationStrategy<Persoana> persoanaValidator, ValidationStrategy<Duck> duckValidator) {
+    public NetworkService(UserRepository userRepository, EventRepository eventRepository, ValidationStrategy<Persoana> persoanaValidator, ValidationStrategy<Duck> duckValidator, CardRepository cardRepository) {
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
         this.persoanaValidator = persoanaValidator;
         this.duckValidator = duckValidator;
+        this.cardRepository = cardRepository;
+        if(cardRepository != null){
+            for (Card card : cardRepository.findAll()) {
+                cards.put(card.getId(), card);
+            }
+        }
     }
 
     /**
@@ -79,6 +90,9 @@ public class NetworkService {
             Duck d = (Duck) userToRemove;
             for (Card c : cards.values()) {
                 c.removeDuck(d);
+            }
+            if (cardRepository != null) {
+                cardRepository.removeDuckFromAll(d.getId());
             }
         }
         return userToRemove;
@@ -185,15 +199,21 @@ public class NetworkService {
     /**
      * Create a card (flock) that can contain ducks and compute their average performance.
      *
-     * @param id       card id
      * @param numeCard card name
      * @return created {@link Card}
      */
-    public Card createCard(int id, String numeCard){
-        if(cards.containsKey(id)) throw new RepoError("Card with id "+id+" already exists");
-        Card c = new Card(id, numeCard);
-        cards.put(id, c);
-        return c;
+    public Card createCard(String numeCard){
+        Card persisted;
+        if (cardRepository != null) {
+            // persist first to obtain DB-generated id
+            persisted = cardRepository.save(new Card(-1, numeCard));
+        } else {
+            // fallback to in-memory id assignment
+            int newId = cards.keySet().stream().mapToInt(Integer::intValue).max().orElse(0) + 1;
+            persisted = new Card(newId, numeCard);
+        }
+        cards.put(persisted.getId(), persisted);
+        return persisted;
     }
 
     /**
@@ -215,6 +235,9 @@ public class NetworkService {
         User u = userRepository.findOne(duckId);
         if(!(u instanceof Duck)) throw new RepoError("User is not a duck or not found");
         c.addDuck((Duck) u);
+        if(cardRepository != null) {
+            cardRepository.addDuck(cardId, duckId);
+        }
     }
 
     /**
@@ -229,6 +252,9 @@ public class NetworkService {
         User u = userRepository.findOne(duckId);
         if(!(u instanceof Duck)) throw new RepoError("User is not a duck or not found");
         c.removeDuck((Duck) u);
+        if(cardRepository != null) {
+            cardRepository.removeDuck(cardId, duckId);
+        }
     }
 
     /**
@@ -247,13 +273,13 @@ public class NetworkService {
     /**
      * Create and store a race event with a specific lane count.
      *
-     * @param id    event id
      * @param name  event name
      * @param lanes number of lanes (M)
-     * @return created {@link RaceEvent}
+     * @return created {@link RaceEvent} with a DB-generated id
      */
-    public RaceEvent createRaceEvent(int id, String name, int lanes){
-        RaceEvent re = new RaceEvent(id, name, lanes);
+    public RaceEvent createRaceEvent(String name, int lanes){
+        // temporary id; PostgresEventRepository should ignore/use its own sequence
+        RaceEvent re = new RaceEvent(-1, name, lanes);
         eventRepository.save(re);
         return re;
     }
@@ -275,6 +301,9 @@ public class NetworkService {
         User u = userRepository.findOne(userId);
         if(u==null) throw new RepoError("User not found");
         e.subscribe(u);
+        if(eventRepository instanceof PostgresEventRepository pe){
+            pe.addSubscriber(eventId, userId);
+        }
     }
 
     /**
@@ -287,7 +316,12 @@ public class NetworkService {
         Event e = eventRepository.findOne(eventId);
         if(e==null) throw new RepoError("Event not found");
         User u = userRepository.findOne(userId);
-        if(u!=null) e.unsubscribe(u);
+        if(u!=null) {
+            e.unsubscribe(u);
+            if(eventRepository instanceof PostgresEventRepository pe){
+                pe.removeSubscriber(eventId, userId);
+            }
+        }
     }
 
     /**
@@ -304,7 +338,11 @@ public class NetworkService {
         List<Duck> allDucks = new ArrayList<>();
         for (User u : userRepository.findAll()) if(u instanceof Duck && u instanceof Inotator) allDucks.add((Duck) u);
         re.selectParticipants(allDucks);
-        return re.runRaceAndReport();
+        List<String> report = re.runRaceAndReport();
+        if(eventRepository instanceof PostgresEventRepository pe){
+            pe.addNotification(eventId, "Race finished. Results available.");
+        }
+        return report;
     }
 
     /**

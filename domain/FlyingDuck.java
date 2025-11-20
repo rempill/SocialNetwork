@@ -17,6 +17,10 @@ public class FlyingDuck extends Duck implements Zburator {
     public FlyingDuck(int id, String username, String email, String password, double viteza, double rezistenta) {
         super(id, username, email, password, TipRata.FLYING, viteza, rezistenta);
     }
+
+    public FlyingDuck(String username, String email, String password, double viteza, double rezistenta) {
+        super(username, email, password, TipRata.FLYING, viteza, rezistenta);
+    }
     @Override
     public void zboara() { /* simple behavior placeholder */ }
 }

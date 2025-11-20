@@ -1,10 +1,7 @@
 import UI.ConsoleUI;
 import domain.Duck;
 import domain.Persoana;
-import repo.EventRepository;
-import repo.UserRepository;
-import repo.PostgresUserRepository;
-import repo.PostgresEventRepository;
+import repo.*;
 import service.NetworkService;
 import validator.DuckValidator;
 import validator.PersoanaValidator;
@@ -29,13 +26,14 @@ public class Main {
         String dbUser = "postgres";
         String dbPass = "mihai222";
 
-        UserRepository userRepository=new PostgresUserRepository(dbUrl, dbUser, dbPass);
-        EventRepository eventRepository = new PostgresEventRepository(dbUrl, dbUser, dbPass);
+        UserRepository userRepository = new PostgresUserRepository(dbUrl, dbUser, dbPass);
+        CardRepository cardRepository = new PostgresCardRepository(dbUrl, dbUser, dbPass, userRepository);
+        EventRepository eventRepository = new PostgresEventRepository(dbUrl, dbUser, dbPass, userRepository);
 
         ValidationStrategy<Persoana>  persoanaValidator=new PersoanaValidator();
         ValidationStrategy<Duck>  duckValidator=new DuckValidator();
 
-        NetworkService service= new NetworkService(userRepository, eventRepository, persoanaValidator, duckValidator);
+        NetworkService service= new NetworkService(userRepository, eventRepository, persoanaValidator, duckValidator, cardRepository);
 
         ConsoleUI ui=new ConsoleUI(service);
         ui.run();

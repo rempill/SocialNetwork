@@ -17,6 +17,10 @@ public class SwimmingDuck extends Duck implements Inotator {
     public SwimmingDuck(int id, String username, String email, String password, double viteza, double rezistenta) {
         super(id, username, email, password, TipRata.SWIMMING, viteza, rezistenta);
     }
+
+    public SwimmingDuck(String username, String email, String password, double viteza, double rezistenta) {
+        super(username, email, password, TipRata.SWIMMING, viteza, rezistenta);
+    }
     @Override
     public void inoata() { /* simple behavior placeholder */ }
 }

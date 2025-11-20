@@ -4,7 +4,6 @@ plugins {
     id 'application'
 }
 
-group = 'org.example'
 version = '1.0.0'
 
 java {
@@ -24,7 +23,7 @@ dependencies {
 
 application {
     // Use the fully-qualified main class name if your Main is in a package.
-    mainClass = 'Main'
+    mainClass.set('Main')
 }
 
 sourceSets {
@@ -44,4 +43,8 @@ tasks.withType(JavaCompile) {
 
 tasks.test {
     enabled = false
+}
+
+tasks.named('run') {
+    standardInput = System.in
 }

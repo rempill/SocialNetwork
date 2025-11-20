@@ -32,6 +32,15 @@ public class Persoana extends User{
         this.nivelEmpatie = nivelEmpatie;
     }
 
+    public Persoana(String username, String email, String password, String nume, String prenume, String ocupatie, LocalDate dataNasterii, int nivelEmpatie) {
+        super(-1, username, email, password); // uninitialized id
+        this.nume = nume;
+        this.prenume = prenume;
+        this.ocupatie = ocupatie;
+        this.dataNasterii = dataNasterii;
+        this.nivelEmpatie = nivelEmpatie;
+    }
+
     /**
      * Get family name.
      * @return family name

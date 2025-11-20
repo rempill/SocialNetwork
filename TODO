@@ -1,0 +1,5 @@
+DONE 1. db cascade on delete + primary key serial ca sa nu dam noi id + stergere crere id cand facem obiect si whatnot
+2.java connection lifecycle
+  java db connection Pooling
+  sql injection
+3. o singura conexiune la db de aplicatie ca atunci cand am mai multi useri sa nu deschidem cate o conexiune la db pt fiecare user

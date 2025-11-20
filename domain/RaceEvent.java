@@ -40,6 +40,13 @@ public class RaceEvent extends Event {
     public List<Duck> getParticipants() { return participants; }
 
     /**
+     * @return defensive copy of the configured lane distances
+     */
+    public double[] getDistances() {
+        return distances.clone();
+    }
+
+    /**
      * Set the per-lane distances, must have exactly M entries.
      *
      * @param distances distances per lane

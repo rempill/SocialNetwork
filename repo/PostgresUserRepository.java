@@ -186,21 +186,29 @@ public class PostgresUserRepository implements UserRepository {
     @Override
     public User save(User entity) throws RepoError {
         if (entity == null) throw new IllegalArgumentException("user is null");
-        if (findOne(entity.getId()) != null) throw new RepoError("User with id " + entity.getId() + " already exists.");
-        String sqlBase = "INSERT INTO user_base(id, username, email, password) VALUES(?,?,?,?)";
+        String sqlBase = "INSERT INTO user_base(username, email, password) VALUES(?,?,?)";
         try (Connection c = getConnection()) {
             c.setAutoCommit(false);
-            try (PreparedStatement ps = c.prepareStatement(sqlBase)) {
-                ps.setInt(1, entity.getId());
-                ps.setString(2, entity.getUsername());
-                ps.setString(3, entity.getEmail());
-                ps.setString(4, entity.getPassword());
+            int generatedId;
+            try (PreparedStatement ps = c.prepareStatement(sqlBase,Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, entity.getUsername());
+                ps.setString(2, entity.getEmail());
+                ps.setString(3, entity.getPassword());
                 ps.executeUpdate();
+                try (ResultSet rs = ps.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        generatedId = rs.getInt(1);
+                        entity.setId(generatedId);
+                    } else {
+                        c.rollback();
+                        throw new RepoError("DB save error: failed to retrieve generated id");
+                    }
+                }
             }
             if (entity instanceof Persoana p) {
-                String sqlP = "INSERT INTO persoana(id, nume, prenume, ocupatie, data_nasterii, nivel_empatie) VALUES(?,?,?,?,?,?)";
+                String sqlP = "INSERT INTO persoana(id,nume, prenume, ocupatie, data_nasterii, nivel_empatie) VALUES(?,?,?,?,?,?)";
                 try (PreparedStatement ps = c.prepareStatement(sqlP)) {
-                    ps.setInt(1, p.getId());
+                    ps.setInt(1, generatedId);
                     ps.setString(2, p.getNume());
                     ps.setString(3, p.getPrenume());
                     ps.setString(4, p.getOcupatie());
@@ -209,9 +217,9 @@ public class PostgresUserRepository implements UserRepository {
                     ps.executeUpdate();
                 }
             } else if (entity instanceof Duck d) {
-                String sqlD = "INSERT INTO duck(id, tip_rata, viteza, rezistenta) VALUES(?,?,?,?)";
+                String sqlD = "INSERT INTO duck(id,tip_rata, viteza, rezistenta) VALUES(?,?,?,?)";
                 try (PreparedStatement ps = c.prepareStatement(sqlD)) {
-                    ps.setInt(1, d.getId());
+                    ps.setInt(1, generatedId);
                     ps.setString(2, d.getTipRata().name());
                     ps.setDouble(3, d.getViteza());
                     ps.setDouble(4, d.getRezistenta());

@@ -1,29 +1,39 @@
 package repo;
 
-import domain.*;
+import domain.Duck;
+import domain.Event;
+import domain.RaceEvent;
+import domain.User;
 import errors.RepoError;
 
 import java.sql.*;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
 /**
- * JDBC-based repository for persisting {@link Event} entities in a PostgreSQL database.
- * This implementation uses two tables:
- *   event(id, name)
- *   event_subscription(event_id FK -> event.id, user_id FK -> user_base.id)
+ * JDBC-based repository for persisting Event and RaceEvent entities
+ * in a PostgreSQL database.
  *
- * Subscriber relationships are persisted in event_subscription and loaded by findAll.
+ * Tables used:
+ *   events(id, name, type)
+ *   race_events(event_id FK -> events.id, lanes, distances)
+ *   race_participants(race_event_id FK -> race_events.event_id, duck_id FK -> duck.id, lane)
+ *   event_subscribers(event_id FK -> events.id, user_id FK -> user_base.id)
+ *   event_notifications(id, event_id FK -> events.id, message, created_at)
  */
 public class PostgresEventRepository implements EventRepository {
     private final String url;
     private final String user;
     private final String password;
+    private final UserRepository userRepository;
 
-    public PostgresEventRepository(String url, String user, String password) {
+    public PostgresEventRepository(String url, String user, String password, UserRepository userRepository) {
         this.url = url;
         this.user = user;
         this.password = password;
+        this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
     }
 
     private Connection getConnection() throws SQLException {
@@ -33,119 +43,149 @@ public class PostgresEventRepository implements EventRepository {
     @Override
     public Event findOne(Integer id) {
         if (id == null) throw new IllegalArgumentException("id is null");
-        String sql = "SELECT id, name FROM event WHERE id = ?";
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) return null;
-                int eventId = rs.getInt("id");
-                String name = rs.getString("name");
-                return new Event(eventId, name);
+
+        try (Connection c = getConnection()) {
+            // Load base event
+            String sqlEvent = "SELECT id, name, type FROM events WHERE id = ?";
+            Event event;
+            try (PreparedStatement ps = c.prepareStatement(sqlEvent)) {
+                ps.setInt(1, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) return null;
+                    String name = rs.getString("name");
+                    String type = rs.getString("type");
+                    if ("RACE".equals(type)) {
+                        event = loadRaceEvent(c, id, name);
+                    } else {
+                        event = new Event(id, name);
+                    }
+                }
             }
+
+            // Load subscribers
+            String sqlSubs = "SELECT user_id FROM event_subscribers WHERE event_id = ?";
+            try (PreparedStatement ps = c.prepareStatement(sqlSubs)) {
+                ps.setInt(1, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        int userId = rs.getInt("user_id");
+                        User subscriber = userRepository.findOne(userId);
+                        if (subscriber != null) {
+                            event.attachSubscriber(subscriber);
+                        }
+                    }
+                }
+            }
+
+            // Load notifications
+            String sqlNotifs = "SELECT message FROM event_notifications WHERE event_id = ? ORDER BY created_at";
+            try (PreparedStatement ps = c.prepareStatement(sqlNotifs)) {
+                ps.setInt(1, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        event.appendNotification(rs.getString("message"));
+                    }
+                }
+            }
+
+            return event;
+
         } catch (SQLException e) {
             throw new RepoError("DB findOne error: " + e.getMessage());
         }
     }
 
+    private RaceEvent loadRaceEvent(Connection c, int id, String name) throws SQLException {
+        String sql = "SELECT lanes, distances FROM race_events WHERE event_id = ?";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) throw new RepoError("RaceEvent data missing for id " + id);
+                int lanes = rs.getInt("lanes");
+                Array distancesArray = rs.getArray("distances");
+                Double[] distances = (Double[]) distancesArray.getArray();
+                RaceEvent race = new RaceEvent(id, name, lanes);
+                race.setDistances(Arrays.stream(distances).mapToDouble(Double::doubleValue).toArray());
+
+                // load participants
+                String sqlPart = "SELECT duck_id, lane FROM race_participants WHERE race_event_id = ? ORDER BY lane";
+                try (PreparedStatement psPart = c.prepareStatement(sqlPart)) {
+                    psPart.setInt(1, id);
+                    try (ResultSet rsPart = psPart.executeQuery()) {
+                        while (rsPart.next()) {
+                            int duckId = rsPart.getInt("duck_id");
+                            User participant = userRepository.findOne(duckId);
+                            if (participant instanceof Duck duck) {
+                                race.getParticipants().add(duck);
+                            }
+                        }
+                    }
+                }
+                return race;
+            }
+        }
+    }
+
     @Override
     public Iterable<Event> findAll() {
-        Map<Integer, Event> map = new LinkedHashMap<>();
-        String sqlEvents = "SELECT id, name FROM event";
-        try (Connection c = getConnection(); Statement st = c.createStatement()) {
-            try (ResultSet rs = st.executeQuery(sqlEvents)) {
-                while (rs.next()) {
-                    int id = rs.getInt("id");
-                    String name = rs.getString("name");
-                    map.put(id, new Event(id, name));
-                }
+        List<Event> events = new ArrayList<>();
+        String sql = "SELECT id FROM events ORDER BY id";
+        try (Connection c = getConnection();
+             Statement st = c.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                events.add(findOne(id));
             }
-            loadSubscriptions(c, map);
         } catch (SQLException e) {
             throw new RepoError("DB findAll error: " + e.getMessage());
         }
-        return map.values();
-    }
-
-    private void loadSubscriptions(Connection c, Map<Integer, Event> events) throws SQLException {
-        if (events.isEmpty()) return;
-        String sql = "SELECT es.event_id, es.user_id, ub.username, ub.email, ub.password " +
-                     "FROM event_subscription es " +
-                     "JOIN user_base ub ON es.user_id = ub.id";
-        try (Statement st = c.createStatement(); ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next()) {
-                int eventId = rs.getInt("event_id");
-                int userId = rs.getInt("user_id");
-                String username = rs.getString("username");
-                String email = rs.getString("email");
-                String pass = rs.getString("password");
-                
-                Event event = events.get(eventId);
-                if (event != null) {
-                    // Load the full user entity (Persoana or Duck)
-                    User user = loadUser(c, userId, username, email, pass);
-                    if (user != null) {
-                        event.subscribe(user);
-                    }
-                }
-            }
-        }
-    }
-
-    private User loadUser(Connection c, int id, String username, String email, String pass) throws SQLException {
-        // Try loading as Persoana first
-        User user = loadPersoana(c, id, username, email, pass);
-        if (user != null) return user;
-        // Otherwise try loading as Duck
-        return loadDuck(c, id, username, email, pass);
-    }
-
-    private Persoana loadPersoana(Connection c, int id, String username, String email, String pass) throws SQLException {
-        String sql = "SELECT nume, prenume, ocupatie, data_nasterii, nivel_empatie FROM persoana WHERE id = ?";
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) return null;
-                String nume = rs.getString("nume");
-                String prenume = rs.getString("prenume");
-                String ocupatie = rs.getString("ocupatie");
-                java.sql.Date dn = rs.getDate("data_nasterii");
-                java.time.LocalDate dataNasterii = dn != null ? dn.toLocalDate() : java.time.LocalDate.now();
-                int nivelEmpatie = rs.getInt("nivel_empatie");
-                return new Persoana(id, username, email, pass, nume, prenume, ocupatie, dataNasterii, nivelEmpatie);
-            }
-        }
-    }
-
-    private Duck loadDuck(Connection c, int id, String username, String email, String pass) throws SQLException {
-        String sql = "SELECT tip_rata, viteza, rezistenta FROM duck WHERE id = ?";
-        try (PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) return null;
-                String tipRataStr = rs.getString("tip_rata");
-                double viteza = rs.getDouble("viteza");
-                double rezistenta = rs.getDouble("rezistenta");
-                TipRata tip = TipRata.valueOf(tipRataStr);
-                return switch (tip) {
-                    case FLYING -> new FlyingDuck(id, username, email, pass, viteza, rezistenta);
-                    case SWIMMING -> new SwimmingDuck(id, username, email, pass, viteza, rezistenta);
-                    case FLYING_AND_SWIMMING -> new AmphibiousDuck(id, username, email, pass, viteza, rezistenta);
-                };
-            }
-        }
+        return events;
     }
 
     @Override
     public Event save(Event entity) throws RepoError {
-        if (entity == null) throw new IllegalArgumentException("event is null");
-        if (findOne(entity.getId()) != null) {
-            throw new RepoError("Event with id " + entity.getId() + " already exists.");
-        }
-        String sql = "INSERT INTO event(id, name) VALUES(?,?)";
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, entity.getId());
-            ps.setString(2, entity.getName());
-            ps.executeUpdate();
+        if (entity == null) throw new IllegalArgumentException("entity is null");
+        try (Connection c = getConnection()) {
+            c.setAutoCommit(false);
+
+            // Insert into events
+            String sqlEvent = "INSERT INTO events(name, type) VALUES (?, ?) RETURNING id";
+            int generatedId;
+            try (PreparedStatement ps = c.prepareStatement(sqlEvent)) {
+                ps.setString(1, entity.getName());
+                ps.setString(2, entity instanceof RaceEvent ? "RACE" : "EVENT");
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) throw new RepoError("Failed to generate event id");
+                    generatedId = rs.getInt(1);
+                }
+            }
+
+            // Insert race-specific data
+            if (entity instanceof RaceEvent race) {
+                String sqlRace = "INSERT INTO race_events(event_id, lanes, distances) VALUES (?, ?, ?)";
+                try (PreparedStatement ps = c.prepareStatement(sqlRace)) {
+                    ps.setInt(1, generatedId);
+                    ps.setInt(2, race.getLanes());
+                    ps.setArray(3, c.createArrayOf("double precision", Arrays.stream(race.getDistances()).boxed().toArray(Double[]::new)));
+                    ps.executeUpdate();
+                }
+
+                // Insert participants
+                String sqlPart = "INSERT INTO race_participants(race_event_id, duck_id, lane) VALUES (?, ?, ?)";
+                try (PreparedStatement ps = c.prepareStatement(sqlPart)) {
+                    int lane = 1;
+                    for (Duck d : race.getParticipants()) {
+                        ps.setInt(1, generatedId);
+                        ps.setInt(2, d.getId());
+                        ps.setInt(3, lane++);
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
+            }
+            entity.setId(generatedId);
+            c.commit();
             return entity;
         } catch (SQLException e) {
             throw new RepoError("DB save error: " + e.getMessage());
@@ -157,7 +197,7 @@ public class PostgresEventRepository implements EventRepository {
         if (id == null) throw new IllegalArgumentException("id is null");
         Event existing = findOne(id);
         if (existing == null) return null;
-        String sql = "DELETE FROM event WHERE id = ?"; // cascades to event_subscription
+        String sql = "DELETE FROM events WHERE id = ?"; // cascades to race_events, participants, subscribers, notifications
         try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, id);
             ps.executeUpdate();
@@ -167,37 +207,36 @@ public class PostgresEventRepository implements EventRepository {
         }
     }
 
-    /**
-     * Save a subscription relationship between an event and a user.
-     *
-     * @param eventId the event id
-     * @param userId the user id
-     */
-    public void saveSubscription(int eventId, int userId) {
-        String sql = "INSERT INTO event_subscription(event_id, user_id) VALUES(?,?) ON CONFLICT DO NOTHING";
+    public void addSubscriber(int eventId, int userId) {
+        String sql = "INSERT INTO event_subscribers(event_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
         try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, eventId);
             ps.setInt(2, userId);
             ps.executeUpdate();
         } catch (SQLException e) {
-            throw new RepoError("DB saveSubscription error: " + e.getMessage());
+            throw new RepoError("DB addSubscriber error: " + e.getMessage());
         }
     }
 
-    /**
-     * Delete a subscription relationship between an event and a user.
-     *
-     * @param eventId the event id
-     * @param userId the user id
-     */
-    public void deleteSubscription(int eventId, int userId) {
-        String sql = "DELETE FROM event_subscription WHERE event_id = ? AND user_id = ?";
+    public void removeSubscriber(int eventId, int userId) {
+        String sql = "DELETE FROM event_subscribers WHERE event_id = ? AND user_id = ?";
         try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, eventId);
             ps.setInt(2, userId);
             ps.executeUpdate();
         } catch (SQLException e) {
-            throw new RepoError("DB deleteSubscription error: " + e.getMessage());
+            throw new RepoError("DB removeSubscriber error: " + e.getMessage());
+        }
+    }
+
+    public void addNotification(int eventId, String message) {
+        String sql = "INSERT INTO event_notifications(event_id, message) VALUES (?, ?)";
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, eventId);
+            ps.setString(2, message);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RepoError("DB addNotification error: " + e.getMessage());
         }
     }
 }

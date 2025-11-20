@@ -25,6 +25,13 @@ public abstract class Duck extends User {
         this.rezistenta = rezistenta;
     }
 
+    public Duck(String username, String email, String password, TipRata tipRata, double viteza, double rezistenta) {
+        super(-1, username, email, password); // uninitialized id
+        this.tipRata = tipRata;
+        this.viteza = viteza;
+        this.rezistenta = rezistenta;
+    }
+
     /**
      * Get the duck type.
      * @return the TipRata of this duck
