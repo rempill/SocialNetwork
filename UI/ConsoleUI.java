@@ -36,7 +36,7 @@ public class ConsoleUI {
      * from standard input until the user chooses to exit.
      */
     public void run() {
-        addTestData();
+        //addTestData();
         while (true) {
             printMenu();
             System.out.print("> ");
