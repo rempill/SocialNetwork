@@ -213,7 +213,7 @@ public class ConsoleUI {
 
     private void showAllUsers() {
         System.out.println("Utilizatorii retelei:");
-        for (User u : service.getAllUsers()) {
+        for (User u : service.getAllUsers(null)) {
             System.out.println(u.getId() + ": " + u.getUsername() + " " + u.getFriends());
         }
     }

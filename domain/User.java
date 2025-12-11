@@ -25,7 +25,7 @@ public abstract class User {
     public User(int id, String name, String email, String password) {
         this.id = id;
         this.username = name;
-        this.email = email;
+        this.email = email != null ? email.toLowerCase() : null;
         this.password = password;
         this.friends=new ArrayList<User>();
     }
@@ -33,7 +33,7 @@ public abstract class User {
     public User(String name, String email, String password) {
         this.id=-1; // uninitialized
         this.username = name;
-        this.email = email;
+        this.email = email != null ? email.toLowerCase() : null;
         this.password = password;
         this.friends=new ArrayList<User>();
     }
@@ -146,5 +146,9 @@ public abstract class User {
         if(obj==null || getClass()!=obj.getClass()) return false;
         User other=(User) obj;
         return this.id==other.id;
+    }
+
+    public void setPassword(String hashedPassword) {
+        this.password = hashedPassword;
     }
 }

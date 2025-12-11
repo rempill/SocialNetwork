@@ -28,12 +28,19 @@ public class PostgresEventRepository implements EventRepository {
     private final String user;
     private final String password;
     private final UserRepository userRepository;
+    Connection c;
 
     public PostgresEventRepository(String url, String user, String password, UserRepository userRepository) {
         this.url = url;
         this.user = user;
         this.password = password;
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
+        try{
+            c=getConnection();
+        }
+        catch(Exception e){
+            throw new RepoError("DB connection error: " + e.getMessage());
+        }
     }
 
     private Connection getConnection() throws SQLException {
@@ -44,7 +51,7 @@ public class PostgresEventRepository implements EventRepository {
     public Event findOne(Integer id) {
         if (id == null) throw new IllegalArgumentException("id is null");
 
-        try (Connection c = getConnection()) {
+        try{
             // Load base event
             String sqlEvent = "SELECT id, name, type FROM events WHERE id = ?";
             Event event;
@@ -130,8 +137,7 @@ public class PostgresEventRepository implements EventRepository {
     public Iterable<Event> findAll() {
         List<Event> events = new ArrayList<>();
         String sql = "SELECT id FROM events ORDER BY id";
-        try (Connection c = getConnection();
-             Statement st = c.createStatement();
+        try (Statement st = c.createStatement();
              ResultSet rs = st.executeQuery(sql)) {
             while (rs.next()) {
                 int id = rs.getInt("id");
@@ -146,7 +152,7 @@ public class PostgresEventRepository implements EventRepository {
     @Override
     public Event save(Event entity) throws RepoError {
         if (entity == null) throw new IllegalArgumentException("entity is null");
-        try (Connection c = getConnection()) {
+        try{
             c.setAutoCommit(false);
 
             // Insert into events
@@ -198,7 +204,7 @@ public class PostgresEventRepository implements EventRepository {
         Event existing = findOne(id);
         if (existing == null) return null;
         String sql = "DELETE FROM events WHERE id = ?"; // cascades to race_events, participants, subscribers, notifications
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, id);
             ps.executeUpdate();
             return existing;
@@ -209,7 +215,7 @@ public class PostgresEventRepository implements EventRepository {
 
     public void addSubscriber(int eventId, int userId) {
         String sql = "INSERT INTO event_subscribers(event_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, eventId);
             ps.setInt(2, userId);
             ps.executeUpdate();
@@ -220,7 +226,7 @@ public class PostgresEventRepository implements EventRepository {
 
     public void removeSubscriber(int eventId, int userId) {
         String sql = "DELETE FROM event_subscribers WHERE event_id = ? AND user_id = ?";
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, eventId);
             ps.setInt(2, userId);
             ps.executeUpdate();
@@ -231,7 +237,7 @@ public class PostgresEventRepository implements EventRepository {
 
     public void addNotification(int eventId, String message) {
         String sql = "INSERT INTO event_notifications(event_id, message) VALUES (?, ?)";
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, eventId);
             ps.setString(2, message);
             ps.executeUpdate();

@@ -26,8 +26,13 @@ public class UserValidator implements ValidationStrategy<User> {
             if(user.getEmail()==null){
                 errors+="Email is null!\n";
             }
-            else if(!user.getEmail().contains("@")){
-                errors+="Email is invalid!\n";
+            else {
+                if(!user.getEmail().contains("@")){
+                    errors+="Email is invalid!\n";
+                }
+                if(!user.getEmail().equals(user.getEmail().toLowerCase())){
+                    errors+="Email must be lowercase!\n";
+                }
             }
             if(user.getUsername()==null || user.getUsername().isEmpty()){
                 errors+="Username is null or empty!\n";

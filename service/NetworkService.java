@@ -8,8 +8,10 @@ import repo.UserRepository;
 import repo.PostgresUserRepository; // added
 import repo.PostgresEventRepository;
 import repo.CardRepository;
-
+import repo.MessageRepository;
+import util.PageResult;
 import util.Algorithms;
+import util.PasswordHasher;
 import validator.ValidationStrategy;
 
 import java.util.*;
@@ -25,6 +27,7 @@ public class NetworkService {
     private ValidationStrategy<Duck> duckValidator;
     private final Map<Integer, Card> cards = new HashMap<>();
     private final CardRepository cardRepository;
+    private final MessageRepository messageRepository;
 
     /**
      * Construct the NetworkService with required dependencies.
@@ -34,13 +37,15 @@ public class NetworkService {
      * @param persoanaValidator validator for Persoana instances
      * @param duckValidator validator for Duck instances
      * @param cardRepository repository for cards
+     * @param messageRepository repository for messages
      */
-    public NetworkService(UserRepository userRepository, EventRepository eventRepository, ValidationStrategy<Persoana> persoanaValidator, ValidationStrategy<Duck> duckValidator, CardRepository cardRepository) {
+    public NetworkService(UserRepository userRepository, EventRepository eventRepository, ValidationStrategy<Persoana> persoanaValidator, ValidationStrategy<Duck> duckValidator, CardRepository cardRepository, MessageRepository messageRepository) {
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
         this.persoanaValidator = persoanaValidator;
         this.duckValidator = duckValidator;
         this.cardRepository = cardRepository;
+        this.messageRepository = messageRepository;
         if(cardRepository != null){
             for (Card card : cardRepository.findAll()) {
                 cards.put(card.getId(), card);
@@ -66,7 +71,37 @@ public class NetworkService {
         else{
             throw new ValidationError("Unknown user type");
         }
-        return userRepository.save(user);
+        User toPersist = hashPassword(user);
+        return userRepository.save(toPersist);
+    }
+
+    private User hashPassword(User user) {
+        user.setPassword(PasswordHasher.hash(user.getPassword()));
+        return user;
+    }
+
+    public User login(String email, String password) {
+        User found = userRepository.findByEmail(email == null ? null : email.toLowerCase());
+        if (found == null) {
+            throw new RepoError("Invalid credentials");
+        }
+        String stored = found.getPassword();
+        boolean isHashed = stored != null && stored.startsWith("$2");
+        boolean authenticated;
+        if (isHashed) {
+            authenticated = PasswordHasher.matches(password, stored);
+        } else {
+            authenticated = Objects.equals(password, stored);
+            if (authenticated) {
+                String newHash = PasswordHasher.hash(password);
+                userRepository.updatePassword(found.getId(), newHash);
+                found.setPassword(newHash);
+            }
+        }
+        if (!authenticated) {
+            throw new RepoError("Invalid credentials");
+        }
+        return reloadUser(found.getId());
     }
 
     /**
@@ -142,12 +177,27 @@ public class NetworkService {
     }
 
     /**
-     * Retrieve all users in the network.
+     * Retrieve all users from the repository, optionally filtering by user type.
      *
-     * @return iterable of all users
+     * @param userType optional class type to filter users (e.g., Persoana.class or Duck.class)
+     * @return list of users matching the filter
      */
-    public Iterable<User> getAllUsers(){
-        return userRepository.findAll();
+    public List<User> getAllUsers(Class<? extends User> userType){
+        List<User> result = new ArrayList<>();
+        for (User u : userRepository.findAll()) {
+            if (userType == null || userType.isInstance(u)) {
+                result.add(u);
+            }
+        }
+        return result;
+    }
+
+    public PageResult<Duck> getDucksPage(int pageIndex, int pageSize, TipRata filter) {
+        return userRepository.findDuckPage(pageIndex, pageSize, filter);
+    }
+
+    public Iterable<Duck> getAllDucks() {
+        return userRepository.findAllDucks();
     }
 
     /**
@@ -336,7 +386,11 @@ public class NetworkService {
         if(!(ev instanceof RaceEvent)) throw new RepoError("Event is not a race");
         RaceEvent re = (RaceEvent) ev;
         List<Duck> allDucks = new ArrayList<>();
-        for (User u : userRepository.findAll()) if(u instanceof Duck && u instanceof Inotator) allDucks.add((Duck) u);
+        for (Duck duck : userRepository.findAllDucks()) {
+            if (duck instanceof Inotator) {
+                allDucks.add(duck);
+            }
+        }
         re.selectParticipants(allDucks);
         List<String> report = re.runRaceAndReport();
         if(eventRepository instanceof PostgresEventRepository pe){
@@ -368,5 +422,63 @@ public class NetworkService {
         User u = userRepository.findOne(userId);
         if(u==null) throw new RepoError("User not found");
         return u.getNotifications();
+    }
+
+    public void addFriendshipByEmail(String emailA, String emailB) {
+        User a = requireUserByEmail(emailA);
+        User b = requireUserByEmail(emailB);
+        addFriendship(a.getId(), b.getId());
+    }
+
+    public void removeFriendshipByEmail(String emailA, String emailB) {
+        User a = requireUserByEmail(emailA);
+        User b = requireUserByEmail(emailB);
+        removeFriendship(a.getId(), b.getId());
+    }
+
+    public User requireUserByEmail(String email) {
+        User user = userRepository.findByEmail(email == null ? null : email.toLowerCase());
+        if (user == null) {
+            throw new RepoError("User not found for email " + email);
+        }
+        return user;
+    }
+
+    public User getUserByEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+        return userRepository.findByEmail(email.toLowerCase());
+    }
+
+    public User reloadUser(int userId) {
+        for (User user : userRepository.findAll()) {
+            if (user.getId() == userId) {
+                return user;
+            }
+        }
+        return null;
+    }
+
+    public List<User> getFriendsFor(int userId) {
+        User user = reloadUser(userId);
+        if (user == null) {
+            return Collections.emptyList();
+        }
+        return new ArrayList<>(user.getFriends());
+    }
+
+    public Message sendMessage(User from, List<User> to, String text) {
+        Message message = new Message(-1, from, to, text, java.time.LocalDateTime.now());
+        return messageRepository.save(message);
+    }
+
+    public Message replyMessage(User from, List<User> to, String text, Message replyTo) {
+        Message reply = new Message(-1, from, to, text, java.time.LocalDateTime.now(), replyTo);
+        return messageRepository.saveReply(reply);
+    }
+
+    public List<Message> getConversation(int userId, int otherUserId) {
+        return messageRepository.findConversation(userId, otherUserId);
     }
 }

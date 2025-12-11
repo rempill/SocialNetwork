@@ -18,12 +18,19 @@ public class PostgresCardRepository implements CardRepository {
     private final String user;
     private final String password;
     private final UserRepository userRepository;
+    Connection c;
 
     public PostgresCardRepository(String url, String user, String password, UserRepository userRepository) {
         this.url = url;
         this.user = user;
         this.password = password;
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
+        try{
+            c=getConnection();
+        }
+        catch(Exception e){
+            throw new RepoError("DB connection error: " + e.getMessage());
+        }
     }
 
     private Connection getConnection() throws SQLException {
@@ -34,7 +41,7 @@ public class PostgresCardRepository implements CardRepository {
     public Card findOne(Integer id) {
         if (id == null) throw new IllegalArgumentException("id is null");
         String sql = "SELECT id, nume_card FROM card WHERE id = ?";
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) return null;
@@ -67,7 +74,7 @@ public class PostgresCardRepository implements CardRepository {
     public Iterable<Card> findAll() {
         List<Card> cards = new ArrayList<>();
         String sql = "SELECT id FROM card ORDER BY id";
-        try (Connection c = getConnection(); Statement st = c.createStatement(); ResultSet rs = st.executeQuery(sql)) {
+        try ( Statement st = c.createStatement(); ResultSet rs = st.executeQuery(sql)) {
             while (rs.next()) {
                 cards.add(findOne(rs.getInt("id")));
             }
@@ -81,7 +88,7 @@ public class PostgresCardRepository implements CardRepository {
     public Card save(Card entity) throws RepoError {
         if (entity == null) throw new IllegalArgumentException("entity is null");
         String sql = "INSERT INTO card(nume_card) VALUES (?) RETURNING id";
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try ( PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, entity.getNumeCard());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -103,7 +110,7 @@ public class PostgresCardRepository implements CardRepository {
         Card existing = findOne(id);
         if (existing == null) return null;
         String sql = "DELETE FROM card WHERE id = ?";
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try ( PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, id);
             ps.executeUpdate();
             return existing;
@@ -115,7 +122,7 @@ public class PostgresCardRepository implements CardRepository {
     @Override
     public void addDuck(int cardId, int duckId) {
         String sql = "INSERT INTO card_duck(card_id, duck_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try ( PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, cardId);
             ps.setInt(2, duckId);
             ps.executeUpdate();
@@ -127,7 +134,7 @@ public class PostgresCardRepository implements CardRepository {
     @Override
     public void removeDuck(int cardId, int duckId) {
         String sql = "DELETE FROM card_duck WHERE card_id = ? AND duck_id = ?";
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try ( PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, cardId);
             ps.setInt(2, duckId);
             ps.executeUpdate();
@@ -139,7 +146,7 @@ public class PostgresCardRepository implements CardRepository {
     @Override
     public void removeDuckFromAll(int duckId) {
         String sql = "DELETE FROM card_duck WHERE duck_id = ?";
-        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try ( PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, duckId);
             ps.executeUpdate();
         } catch (SQLException e) {
